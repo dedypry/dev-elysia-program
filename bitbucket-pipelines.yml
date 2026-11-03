@@ -1,0 +1,58 @@
+image: oven/bun:1.3
+
+pipelines:
+  branches:
+    production:
+      - step:
+          name: Build elisyajs app (production)
+          script:
+            - bun install
+            - bash infra/deploy-pack.sh
+            - ls -la dist/
+          artifacts:
+            - dist/**
+      - step:
+          image: instrumentisto/rsync-ssh
+          name: Deploy to Production
+          deployment: production
+          script:
+            - mkdir -p ~/.ssh
+            - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+            - chmod 600 ~/.ssh/id_rsa
+            - |
+              SSH_PORT="${PORT:-22}"
+              if [ -n "${PORT:-}" ]; then
+                ssh-keyscan -p "$SSH_PORT" "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+              else
+                ssh-keyscan "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+              fi
+            - |
+              RSYNC_OK=0
+              SSH_PORT="${PORT:-22}"
+              REMOTE="${REMOTE_DIR:-.vim}"
+              for i in 1 2 3 4 5 6; do
+                if rsync -rp --delete-after \
+                  --exclude='.env' \
+                  --exclude='logs/' \
+                  -e "ssh -p ${SSH_PORT}" \
+                  dist/ "$USER@$HOST:/home/$USER/${REMOTE}/"; then
+                  echo "rsync ok (attempt $i)"
+                  RSYNC_OK=1
+                  break
+                fi
+                echo "Retrying rsync... ($i)"
+                sleep 10
+              done
+              if [ "$RSYNC_OK" -ne 1 ]; then
+                echo "rsync failed after 6 attempts"
+                exit 1
+              fi
+            - |
+              SSH_PORT="${PORT:-22}"
+              REMOTE="${REMOTE_DIR:-.vim}"
+              ssh -p "$SSH_PORT" "$USER@$HOST" "
+                set -e
+                cd /home/$USER/${REMOTE}
+                test -f .env || echo '⚠️  buat .env di server'
+                command -v bun >/dev/null || echo '⚠️  bun belum terpasang'
+              "

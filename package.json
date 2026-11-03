@@ -3,13 +3,23 @@
   "version": "1.0.50",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "bun run --watch src/index.ts"
+    "dev": "bun run --watch src/index.ts",
+    "build": "bash build.sh",
+    "start": "bash start.sh",
+    "deploy:pack": "bash infra/deploy-pack.sh",
+    "deploy:prod": "bash infra/deploy-prod.sh"
   },
   "dependencies": {
-    "elysia": "latest"
+    "drizzle-orm": "^0.45.4",
+    "elysia": "latest",
+    "firebase": "^13.2.0",
+    "nodemailer": "^10.3.1",
+    "pg": "^8.23.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@types/nodemailer": "^8.0.2",
+    "@types/pg": "^8.23.1",
     "bun-types": "latest"
-  },
-  "module": "src/index.js"
+  }
 }
